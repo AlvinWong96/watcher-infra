@@ -1,5 +1,17 @@
 # Watcher Infra — Copilot Context
 
+## Development Environment
+All development happens at `/home/alvinwong/project/docker/` on the local machine.
+Component source repos are checked out inside this folder:
+- `src/html/watcher/` → [AlvinWong96/watcher](https://github.com/AlvinWong96/watcher)
+- `src/predictor/`    → [AlvinWong96/watcher-predictor](https://github.com/AlvinWong96/watcher-predictor)
+
+## Always Check `.docs/` First
+Each component repo contains a `.docs/` folder with detailed architecture and behaviour notes.
+**Before making changes to any component, read its `.docs/` files:**
+- `src/html/watcher/.docs/` — watcher web app docs (news.php SSE, news.js pagination, architecture)
+- `src/predictor/.docs/`    — predictor ML service docs (endpoints, models)
+
 ## Overview
 Docker Compose orchestration for the Watcher dashboard app.
 4 services: `watcher` (PHP/Apache), `predictor` (Python/Flask), `ollama` (LLM), `ollama-init` (one-shot model pull).
