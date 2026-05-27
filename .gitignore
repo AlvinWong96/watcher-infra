@@ -1,5 +1,6 @@
-# Source code lives in separate repos — clone them into src/ manually
-src/
+# Subdirectories managed as separate repos — clone manually
+src/predictor/
+src/html/watcher/
 
 # OS
 .DS_Store
