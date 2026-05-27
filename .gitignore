@@ -1,0 +1,15 @@
+# Source code lives in separate repos — clone them into src/ manually
+src/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log

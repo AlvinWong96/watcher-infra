@@ -1,0 +1,110 @@
+services:
+
+  # ── PHP / Apache web server ──────────────────────────────────────────────
+  watcher:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: watcher-app
+    ports:
+      - "8080:80"
+    volumes:
+      - ./src/html:/var/www/html
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    depends_on:
+      ollama-init:
+        condition: service_completed_successfully
+      predictor:
+        condition: service_healthy
+    environment:
+      - APACHE_LOG_DIR=/var/log/apache2
+
+      # ── AI provider ──────────────────────────────────────────────────────
+      # 'ollama'  → local container, no API key needed (default)
+      # 'groq'    → cloud API, fast, requires GROQ_API_KEY below
+      # ''        → disabled, shows raw extracted article text
+      - AI_PROVIDER=ollama
+
+      # ── Ollama settings ──────────────────────────────────────────────────
+      - OLLAMA_HOST=http://ollama:11434
+      # Model to use. llama3.2:3b is ~2 GB and a good balance of speed/quality.
+      # Other options: llama3.2:1b (~1 GB, fastest), llama3.1:8b (~4.7 GB, best quality)
+      #               qwen2.5:7b  (~4.4 GB, best for multilingual / Malaysian content)
+      # NOTE: GTX 960 2GB — use llama3.2:1b (~900 MB) to fit fully in VRAM
+      # llama3.2:3b (~2 GB) will partially offload to CPU but still benefits from GPU
+      - OLLAMA_MODEL=llama3.2:3b
+
+      # ── Groq settings (only used when AI_PROVIDER=groq) ──────────────────
+      # Get your free key at https://console.groq.com (no credit card required)
+      - GROQ_API_KEY=
+
+      # ── Python ML predictor ───────────────────────────────────────────────
+      - PREDICTOR_HOST=http://predictor:5000
+
+  # ── Python ML prediction service ────────────────────────────────────────
+  predictor:
+    build:
+      context: ./src/predictor
+      dockerfile: Dockerfile
+    container_name: watcher-predictor
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:5000/health')\""]
+      interval: 300s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ── Ollama local LLM server ──────────────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: watcher-ollama
+    volumes:
+      - ollama_data:/root/.ollama   # persist downloaded models across restarts
+    ports:
+      - "11434:11434"               # expose for optional local access
+    restart: unless-stopped
+    environment:
+      - OLLAMA_NO_MMAP=1
+      - OLLAMA_NUM_PARALLEL=1
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "2"
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 300s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
+
+  # ── One-shot init: pull the model on first run ───────────────────────────
+  ollama-init:
+    image: ollama/ollama:latest
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    entrypoint: ["ollama", "pull", "llama3.2:3b"]
+    restart: "no"   # run once then exit
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "1"
+
+volumes:
+  ollama_data:    # named volume — models survive container rebuilds
+
